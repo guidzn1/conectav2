@@ -1,24 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Button, Input, ErrorMessage } from "@/components/ui";
 import { useAuth } from "@/hooks/useAuth";
+import { logout } from "@/services/authService";
 import { formatCPF } from "@/utils";
 
 export default function LoginMedicoPage() {
   const router = useRouter();
-  const { entrar, carregando, erro } = useAuth();
+  const { user, entrar, carregando, erro } = useAuth();
   const [cpf, setCpf]       = useState("");
   const [senha, setSenha]   = useState("");
   const [showPwd, setShowPwd] = useState(false);
+  const [loginErro, setLoginErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      if (user.tipoUsuario === "paciente") router.replace("/dashboard");
+      else if (user.tipoUsuario === "profissionalSaude") router.replace("/medico");
+      else if (user.tipoUsuario === "administrador") router.replace("/admin");
+      else if (user.tipoUsuario === "ubs") router.replace("/ubs");
+    }
+  }, [user, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await entrar(cpf.replace(/\D/g, ""), senha);
+      const u = await entrar(cpf.replace(/\D/g, ""), senha);
+      if (u.tipoUsuario !== "profissionalSaude") {
+        await logout();
+        setLoginErro("Esta área é exclusiva para profissionais de saúde.");
+        return;
+      }
       router.push("/medico");
     } catch { /* erro no hook */ }
   }
@@ -50,6 +66,7 @@ export default function LoginMedicoPage() {
             </div>
 
             {erro && <ErrorMessage message={erro} />}
+            {loginErro && <ErrorMessage message={loginErro} />}
 
             <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4 mt-4">
               <Input

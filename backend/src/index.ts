@@ -10,6 +10,8 @@ import {
   agendasRouter,
   agendamentosRouter,
   adminRouter,
+  ubsRouter,
+  medicoRouter,
 } from "./routes";
 
 const app  = express();
@@ -27,6 +29,8 @@ app.use("/api/profissionais",  profissionaisRouter);
 app.use("/api/agendas",        agendasRouter);
 app.use("/api/agendamentos",   agendamentosRouter);
 app.use("/api/admin",          adminRouter);
+app.use("/api/ubs",           ubsRouter);
+app.use("/api/medico",        medicoRouter);
 
 // ── Health check ──────────────────────────────────────────────
 app.get("/health", (_req, res) => {

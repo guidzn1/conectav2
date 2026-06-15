@@ -22,11 +22,15 @@ export function Header() {
             <span className="opacity-75">Governo Federal</span>
           </div>
           <nav aria-label="Links do governo" className="hidden sm:flex gap-4 text-xs">
-            {user?.tipoUsuario === "profissionalSaude" || user?.tipoUsuario === "administrador" ? (
-              <Link href="/medico" className="hover:underline opacity-90">Área do médico</Link>
-            ) : (
-              <Link href="/medico/login" className="hover:underline opacity-90">Área do médico</Link>
-            )}
+            {user ? (
+              user.tipoUsuario === "profissionalSaude" ? (
+                <Link href="/medico" className="hover:underline opacity-90">Área do médico</Link>
+              ) : user.tipoUsuario === "administrador" ? (
+                <Link href="/admin" className="hover:underline opacity-90">Área administrativa</Link>
+              ) : user.tipoUsuario === "ubs" ? (
+                <Link href="/ubs" className="hover:underline opacity-90">Área da UBS</Link>
+              ) : null
+            ) : null}
           </nav>
         </div>
       </div>

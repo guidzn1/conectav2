@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
@@ -8,15 +8,25 @@ import { Button, Input, ErrorMessage } from "@/components/ui";
 import { FormContainer } from "@/components/layout";
 import { register } from "@/services/authService";
 import { formatCPF, formatPhone } from "@/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function CadastroPacientePage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [apiErro, setApiErro] = useState<string | null>(null);
   const [form, setForm] = useState({
     nome: "", cpf: "", telefone: "", email: "", senha: "", confirmarSenha: "",
   });
   const [erros, setErros] = useState<Partial<typeof form>>({});
+
+  useEffect(() => {
+    if (user) {
+      if (user.tipoUsuario === "paciente") router.replace("/dashboard");
+      else if (user.tipoUsuario === "profissionalSaude") router.replace("/medico");
+      else if (user.tipoUsuario === "administrador") router.replace("/admin");
+    }
+  }, [user, router]);
 
   function set(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));

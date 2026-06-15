@@ -9,6 +9,8 @@ import { agendaService } from "@/services";
 import type { ProfissionalSaude, Horario } from "@/types";
 import { cn } from "@/utils";
 
+import { useRequireAuth } from "@/hooks/useAuth";
+
 const WIZARD_STEPS = ["Especialidade", "Unidade", "Profissional", "Data e Horário", "Confirmação"];
 
 function getNext7Days(): string[] {
@@ -28,6 +30,7 @@ function formatDayLabel(iso: string): { dia: string; semana: string } {
 }
 
 export default function HorarioPage() {
+  const { user, carregando } = useRequireAuth(["paciente"]);
   const router = useRouter();
   const [profissional, setProfissional] = useState<ProfissionalSaude | null>(null);
   const [dataSelecionada, setDataSelecionada] = useState("");
@@ -38,10 +41,11 @@ export default function HorarioPage() {
   const dias = getNext7Days();
 
   useEffect(() => {
+    if (!user) return;
     const raw = sessionStorage.getItem("wizard_profissional");
     if (!raw) { router.replace("/agendamento/especialidade"); return; }
     setProfissional(JSON.parse(raw));
-  }, [router]);
+  }, [router, user]);
 
   async function handleSelectData(data: string) {
     if (!profissional) return;
@@ -65,6 +69,17 @@ export default function HorarioPage() {
     sessionStorage.setItem("wizard_data", dataSelecionada);
     sessionStorage.setItem("wizard_horario", horarioSelecionado);
     router.push("/agendamento/confirmacao");
+  }
+
+  if (carregando || !user) {
+    return (
+      <>
+        <Header />
+        <main id="main-content">
+          <Loading text="Verificando acesso..." />
+        </main>
+      </>
+    );
   }
 
   return (
@@ -125,35 +140,72 @@ export default function HorarioPage() {
             {dataSelecionada && (
               <section aria-labelledby="horarios-label">
                 <h2 id="horarios-label" className="font-semibold text-neutral-700 mb-3">
-                  Horários disponíveis
+                  Horários de atendimento
                 </h2>
                 {loading ? <Loading text="Carregando horários..." /> : (
                   <div
                     role="listbox"
                     aria-label="Horários disponíveis"
-                    className="grid grid-cols-4 sm:grid-cols-6 gap-2"
+                    className="grid grid-cols-2 sm:grid-cols-4 gap-3"
                   >
-                    {horarios.map(({ hora, disponivel }) => (
-                      <button
-                        key={hora}
-                        role="option"
-                        aria-selected={hora === horarioSelecionado}
-                        disabled={!disponivel}
-                        onClick={() => disponivel && setHorarioSelecionado(hora)}
-                        className={cn(
-                          "py-2 px-3 rounded-card border text-sm font-semibold transition-all",
-                          "focus-visible:outline-brand-700",
-                          !disponivel && "border-neutral-100 bg-neutral-50 text-neutral-300 cursor-not-allowed",
-                          disponivel && hora !== horarioSelecionado &&
-                            "border-brand-200 bg-white text-brand-700 hover:bg-brand-50",
-                          hora === horarioSelecionado &&
-                            "bg-brand-700 border-brand-700 text-white"
-                        )}
-                        aria-label={`${hora} — ${disponivel ? "disponível" : "indisponível"}`}
-                      >
-                        {hora}
-                      </button>
-                    ))}
+                    {(() => {
+                      const TODAS_HORAS = ["08:00","09:00","10:00","11:00","13:00","14:00","15:00","16:00"];
+                      return TODAS_HORAS.map((hora) => {
+                        const slot = horarios.find((h) => h.hora === hora);
+                        const isSelected = hora === horarioSelecionado;
+
+                        if (!slot) {
+                          return (
+                            <button
+                              key={hora}
+                              role="option"
+                              aria-selected={false}
+                              disabled
+                              className="py-2 px-3 rounded-card border text-sm font-semibold bg-neutral-100 border-neutral-200 text-neutral-400 cursor-not-allowed flex flex-col items-center justify-center min-h-[52px]"
+                              aria-label={`${hora} — Médico não atende nesse horário`}
+                            >
+                              <span className="text-neutral-500">{hora}</span>
+                              <span className="text-[9px] opacity-75 font-normal">Não atende</span>
+                            </button>
+                          );
+                        }
+
+                        if (!slot.disponivel) {
+                          return (
+                            <button
+                              key={hora}
+                              role="option"
+                              aria-selected={false}
+                              disabled
+                              className="py-2 px-3 rounded-card border text-sm font-semibold bg-red-50 border-red-100 text-red-400 cursor-not-allowed flex flex-col items-center justify-center min-h-[52px]"
+                              aria-label={`${hora} — Horário indisponível/reservado`}
+                            >
+                              <span className="text-red-500">{hora}</span>
+                              <span className="text-[9px] opacity-75 font-normal">Reservado</span>
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <button
+                            key={hora}
+                            role="option"
+                            aria-selected={isSelected}
+                            onClick={() => setHorarioSelecionado(hora)}
+                            className={cn(
+                              "py-2 px-3 rounded-card border text-sm font-semibold transition-all flex flex-col items-center justify-center min-h-[52px]",
+                              "focus-visible:outline-brand-700",
+                              !isSelected && "border-brand-200 bg-white text-brand-700 hover:bg-brand-50",
+                              isSelected && "bg-brand-700 border-brand-700 text-white"
+                            )}
+                            aria-label={`${hora} — Disponível`}
+                          >
+                            <span>{hora}</span>
+                            <span className={cn("text-[9px] opacity-75 font-normal", isSelected ? "text-white" : "text-brand-500")}>Disponível</span>
+                          </button>
+                        );
+                      });
+                    })()}
                   </div>
                 )}
               </section>

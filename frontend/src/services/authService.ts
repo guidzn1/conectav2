@@ -1,7 +1,7 @@
 import { api } from "./api";
-import type { Paciente, ProfissionalSaude, Administrador } from "@/types";
+import type { Paciente, ProfissionalSaude, Administrador, Ubs } from "@/types";
 
-export type AuthUser = Paciente | ProfissionalSaude | Administrador;
+export type AuthUser = Paciente | ProfissionalSaude | Administrador | Ubs;
 
 interface LoginResponse { token: string; user: AuthUser; }
 

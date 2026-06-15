@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
@@ -10,10 +10,19 @@ import { formatCPF } from "@/utils";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { entrar, carregando, erro } = useAuth();
+  const { user, entrar, carregando, erro } = useAuth();
   const [cpf, setCpf]       = useState("");
   const [senha, setSenha]   = useState("");
   const [showPwd, setShowPwd] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      if (user.tipoUsuario === "paciente") router.replace("/dashboard");
+      else if (user.tipoUsuario === "profissionalSaude") router.replace("/medico");
+      else if (user.tipoUsuario === "administrador") router.replace("/admin");
+      else if (user.tipoUsuario === "ubs") router.replace("/ubs");
+    }
+  }, [user, router]);
   const [erros, setErros]   = useState<{ cpf?: string; senha?: string }>({});
 
   function validate(): boolean {
@@ -28,8 +37,11 @@ export default function LoginPage() {
     e.preventDefault();
     if (!validate()) return;
     try {
-      await entrar(cpf.replace(/\D/g, ""), senha);
-      router.push("/dashboard");
+      const u = await entrar(cpf.replace(/\D/g, ""), senha);
+      if (u.tipoUsuario === "profissionalSaude") router.push("/medico");
+      else if (u.tipoUsuario === "administrador") router.push("/admin");
+      else if (u.tipoUsuario === "ubs") router.push("/ubs");
+      else router.push("/dashboard");
     } catch { /* erro tratado no hook */ }
   }
 

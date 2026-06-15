@@ -10,9 +10,12 @@ import type { Especialidade, UnidadeSaude } from "@/types";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { locationService } from "@/services";
 
+import { useRequireAuth } from "@/hooks/useAuth";
+
 const WIZARD_STEPS = ["Especialidade", "Unidade", "Profissional", "Data e Horário", "Confirmação"];
 
 export default function UnidadePage() {
+  const { user, carregando } = useRequireAuth(["paciente"]);
   const router = useRouter();
   const { latitude, longitude, carregando: geoCarregando, solicitar } = useGeolocation();
   const [unidades, setUnidades] = useState<UnidadeSaude[]>([]);
@@ -21,6 +24,7 @@ export default function UnidadePage() {
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) return;
     const raw = sessionStorage.getItem("wizard_especialidade");
     if (!raw) { router.replace("/agendamento/especialidade"); return; }
     const esp: Especialidade = JSON.parse(raw);
@@ -42,11 +46,22 @@ export default function UnidadePage() {
       .then(setUnidades)
       .catch(() => setErro("Erro ao carregar unidades."))
       .finally(() => setLoading(false));
-  }, [latitude, longitude, router]);
+  }, [latitude, longitude, router, user]);
 
   function handleSelect(unidade: UnidadeSaude) {
     sessionStorage.setItem("wizard_unidade", JSON.stringify(unidade));
     router.push("/agendamento/medico");
+  }
+
+  if (carregando || !user) {
+    return (
+      <>
+        <Header />
+        <main id="main-content">
+          <Loading text="Verificando acesso..." />
+        </main>
+      </>
+    );
   }
 
   return (

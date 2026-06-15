@@ -8,16 +8,16 @@ import { Card, Badge, Loading, ErrorMessage, EmptyState } from "@/components/ui"
 import { agendamentoService, especialidadeService } from "@/services";
 import type { Agendamento, Especialidade } from "@/types";
 import { formatDate, statusLabel } from "@/utils";
-import { useAuth } from "@/hooks/useAuth";
+import { useRequireAuth } from "@/hooks/useAuth";
 
 const MEDICO_LINKS = [
-  { href: "/medico",          label: "Minha Agenda",      icon: "📅" },
-  { href: "/medico/pacientes",label: "Pacientes",         icon: "👥" },
-  { href: "/medico/perfil",   label: "Meu Perfil",        icon: "👤" },
+  { href: "/medico",           label: "Minha Agenda",  icon: "📅" },
+  { href: "/medico/consultas", label: "Consultas",     icon: "👥" },
+  { href: "/medico/horarios",  label: "Meus Horários", icon: "🕐" },
 ];
 
 export default function MedicoDashboardPage() {
-  const { user } = useAuth();
+  const { user, carregando } = useRequireAuth(["profissionalSaude"]);
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [especialidades, setEspecialidades] = useState<Record<string, Especialidade>>({});
   const [loading, setLoading] = useState(true);
@@ -44,6 +44,17 @@ export default function MedicoDashboardPage() {
   }, [user, dataFiltro]);
 
   const hoje = agendamentos.filter((a) => a.data === dataFiltro);
+
+  if (carregando || !user) {
+    return (
+      <>
+        <Header />
+        <main id="main-content">
+          <Loading text="Verificando acesso..." />
+        </main>
+      </>
+    );
+  }
 
   return (
     <>

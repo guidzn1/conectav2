@@ -5,17 +5,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { PageContainer, StepIndicator } from "@/components/layout";
-import { Card, Button, ErrorMessage, Badge } from "@/components/ui";
+import { Card, Button, ErrorMessage, Badge, Loading } from "@/components/ui";
 import { agendamentoService } from "@/services";
 import type { Especialidade, UnidadeSaude, ProfissionalSaude, Agendamento } from "@/types";
 import { formatDate } from "@/utils";
-import { useAuth } from "@/hooks/useAuth";
+import { useRequireAuth } from "@/hooks/useAuth";
 
 const WIZARD_STEPS = ["Especialidade", "Unidade", "Profissional", "Data e Horário", "Confirmação"];
 
 export default function ConfirmacaoPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, carregando } = useRequireAuth(["paciente"]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmado, setConfirmado] = useState<Agendamento | null>(null);
@@ -64,6 +64,17 @@ export default function ConfirmacaoPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (carregando || !user) {
+    return (
+      <>
+        <Header />
+        <main id="main-content">
+          <Loading text="Verificando acesso..." />
+        </main>
+      </>
+    );
   }
 
   // ── Tela de sucesso ──────────────────────────────────────

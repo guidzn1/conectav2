@@ -8,9 +8,12 @@ import { Card, Button, Loading, ErrorMessage, Badge } from "@/components/ui";
 import { profissionalService, especialidadeService } from "@/services";
 import type { Especialidade, ProfissionalSaude, UnidadeSaude } from "@/types";
 
+import { useRequireAuth } from "@/hooks/useAuth";
+
 const WIZARD_STEPS = ["Especialidade", "Unidade", "Profissional", "Data e Horário", "Confirmação"];
 
 export default function MedicoPage() {
+  const { user, carregando } = useRequireAuth(["paciente"]);
   const router = useRouter();
   const [profissionais, setProfissionais] = useState<ProfissionalSaude[]>([]);
   const [especialidade, setEspecialidade] = useState<Especialidade | null>(null);
@@ -20,6 +23,7 @@ export default function MedicoPage() {
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) return;
     const rawEsp = sessionStorage.getItem("wizard_especialidade");
     const rawUni = sessionStorage.getItem("wizard_unidade");
     if (!rawEsp || !rawUni) { router.replace("/agendamento/especialidade"); return; }
@@ -37,11 +41,22 @@ export default function MedicoPage() {
       })
       .catch(() => setErro("Erro ao carregar profissionais."))
       .finally(() => setLoading(false));
-  }, [router]);
+  }, [router, user]);
 
   function handleSelect(pro: ProfissionalSaude) {
     sessionStorage.setItem("wizard_profissional", JSON.stringify(pro));
     router.push("/agendamento/horario");
+  }
+
+  if (carregando || !user) {
+    return (
+      <>
+        <Header />
+        <main id="main-content">
+          <Loading text="Verificando acesso..." />
+        </main>
+      </>
+    );
   }
 
   return (

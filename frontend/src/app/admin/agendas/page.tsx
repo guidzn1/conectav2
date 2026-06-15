@@ -3,10 +3,11 @@ import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { DashboardLayout, Sidebar } from "@/components/layout";
-import { Card, Button, Select, ErrorMessage } from "@/components/ui";
-import { profissionalService, agendaService } from "@/services";
-import type { ProfissionalSaude, Horario } from "@/types";
+import { Card, Button, Select, ErrorMessage, Loading } from "@/components/ui";
+import { profissionalService, agendaService, unidadeSaudeService } from "@/services";
+import type { ProfissionalSaude, Horario, UnidadeSaude } from "@/types";
 import { cn } from "@/utils";
+import { useRequireAuth } from "@/hooks/useAuth";
 
 const ADMIN_LINKS = [
   { href: "/admin",                label: "Dashboard",         icon: "📊" },
@@ -19,8 +20,11 @@ const ADMIN_LINKS = [
 const HORAS = ["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"];
 
 export default function AdminAgendasPage() {
+  const { user, carregando } = useRequireAuth(["administrador"]);
   const [profissionais, setProfissionais] = useState<ProfissionalSaude[]>([]);
+  const [unidades, setUnidades] = useState<UnidadeSaude[]>([]);
   const [profId, setProfId] = useState("");
+  const [unidadeId, setUnidadeId] = useState("");
   const [data, setData]     = useState("");
   const [horarios, setHorarios] = useState<Horario[]>(
     HORAS.map((hora) => ({ hora, disponivel: true }))
@@ -30,22 +34,35 @@ export default function AdminAgendasPage() {
   const [erro, setErro]       = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) return;
     profissionalService.getProfissionais().then(setProfissionais).catch(() => {});
-  }, []);
+    unidadeSaudeService.getUnidades().then(setUnidades).catch(() => {});
+  }, [user]);
 
   function toggleHorario(hora: string) {
     setHorarios((hs) => hs.map((h) => h.hora === hora ? { ...h, disponivel: !h.disponivel } : h));
   }
 
   async function handleSalvar() {
-    if (!profId || !data) { setErro("Selecione profissional e data."); return; }
+    if (!profId || !unidadeId || !data) { setErro("Selecione profissional, unidade e data."); return; }
     setLoading(true); setErro(null); setSucesso(false);
     try {
-      await agendaService.organizarHorarios("novo", { profissionalId: profId, data, horarios });
+      await agendaService.organizarHorarios("novo", { profissionalId: profId, unidadeId, data, horarios });
       setSucesso(true);
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : "Erro ao salvar.");
     } finally { setLoading(false); }
+  }
+
+  if (carregando || !user) {
+    return (
+      <>
+        <Header />
+        <main id="main-content">
+          <Loading text="Verificando acesso..." />
+        </main>
+      </>
+    );
   }
 
   return (
@@ -62,6 +79,10 @@ export default function AdminAgendasPage() {
               <Select label="Profissional" value={profId} onChange={(e) => setProfId(e.target.value)}
                 placeholder="Selecione o profissional"
                 options={profissionais.map((p) => ({ value: p.id, label: p.nome }))}
+                className="flex-1" />
+              <Select label="Unidade de Saúde" value={unidadeId} onChange={(e) => setUnidadeId(e.target.value)}
+                placeholder="Selecione a unidade"
+                options={unidades.map((u) => ({ value: u.id, label: u.nome }))}
                 className="flex-1" />
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-semibold text-neutral-700">Data</label>

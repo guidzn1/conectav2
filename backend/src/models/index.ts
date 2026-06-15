@@ -1,5 +1,17 @@
 import { Schema, model, Document } from "mongoose";
 
+const toJSONOption = {
+  virtuals: true,
+  versionKey: false,
+  transform: (doc: any, ret: any) => {
+    if (ret._id) {
+      ret.id = ret._id.toString();
+      delete ret._id;
+    }
+    return ret;
+  }
+};
+
 // ── USUARIO ──────────────────────────────────────────────────
 export interface IUsuario extends Document {
   nome: string;
@@ -7,10 +19,11 @@ export interface IUsuario extends Document {
   telefone: string;
   email: string;
   senhaHash: string;
-  tipoUsuario: "paciente" | "administrador" | "profissionalSaude";
+  tipoUsuario: "paciente" | "administrador" | "profissionalSaude" | "ubs";
   nivelAcesso?: string;          // Administrador
   registroProfissional?: string; // ProfissionalSaude
   especialidadeId?: string;      // ProfissionalSaude
+  unidadeId?: string;          // Links médico/UBS user to UnidadeSaude
   criadoEm: Date;
 }
 
@@ -20,12 +33,13 @@ const UsuarioSchema = new Schema<IUsuario>({
   telefone:             { type: String, default: "" },
   email:                { type: String, required: true, unique: true, lowercase: true },
   senhaHash:            { type: String, required: true },
-  tipoUsuario:          { type: String, enum: ["paciente","administrador","profissionalSaude"], required: true },
+  tipoUsuario:          { type: String, enum: ["paciente","administrador","profissionalSaude","ubs"], required: true },
   nivelAcesso:          { type: String },
   registroProfissional: { type: String },
   especialidadeId:      { type: String },
+  unidadeId:            { type: String },
   criadoEm:             { type: Date, default: Date.now },
-});
+}, { toJSON: toJSONOption, toObject: toJSONOption });
 
 export const Usuario = model<IUsuario>("Usuario", UsuarioSchema);
 
@@ -46,7 +60,7 @@ const UnidadeSchema = new Schema<IUnidadeSaude>({
   especialidadeIds: { type: [String], default: [] },
   latitude:         { type: Number },
   longitude:        { type: Number },
-});
+}, { toJSON: toJSONOption, toObject: toJSONOption });
 
 export const UnidadeSaude = model<IUnidadeSaude>("UnidadeSaude", UnidadeSchema);
 
@@ -61,7 +75,7 @@ const EspecialidadeSchema = new Schema<IEspecialidade>({
   nome:     { type: String, required: true, unique: true },
   descricao:{ type: String, default: "" },
   icone:    { type: String },
-});
+}, { toJSON: toJSONOption, toObject: toJSONOption });
 
 export const Especialidade = model<IEspecialidade>("Especialidade", EspecialidadeSchema);
 
@@ -82,7 +96,7 @@ const AgendaSchema = new Schema<IAgenda>({
     hora:       { type: String, required: true },
     disponivel: { type: Boolean, default: true },
   }],
-});
+}, { toJSON: toJSONOption, toObject: toJSONOption });
 
 export const Agenda = model<IAgenda>("Agenda", AgendaSchema);
 
@@ -111,6 +125,8 @@ const AgendamentoSchema = new Schema<IAgendamento>({
   primeiraConsulta:{ type: Boolean, default: false },
   tipoVisita:      { type: String, enum: ["presencial","telemedicina"], default: "presencial" },
   criadoEm:        { type: Date, default: Date.now },
-});
+}, { toJSON: toJSONOption, toObject: toJSONOption });
+
+AgendamentoSchema.index({ profissionalId: 1, data: 1, horario: 1 }, { unique: true });
 
 export const Agendamento = model<IAgendamento>("Agendamento", AgendamentoSchema);

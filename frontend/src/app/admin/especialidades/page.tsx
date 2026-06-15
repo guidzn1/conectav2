@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { DashboardLayout, Sidebar, FormContainer } from "@/components/layout";
-import { Button, Input, TextArea, ErrorMessage } from "@/components/ui";
+import { Button, Input, TextArea, ErrorMessage, Loading } from "@/components/ui";
 import { especialidadeService } from "@/services";
+import { useRequireAuth } from "@/hooks/useAuth";
 
 const ADMIN_LINKS = [
   { href: "/admin",                label: "Dashboard",         icon: "📊" },
@@ -16,6 +17,7 @@ const ADMIN_LINKS = [
 ];
 
 export default function AdminEspecialidadesPage() {
+  const { user, carregando } = useRequireAuth(["administrador"]);
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [sucesso, setSucesso] = useState(false);
@@ -34,6 +36,17 @@ export default function AdminEspecialidadesPage() {
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : "Erro ao cadastrar.");
     } finally { setLoading(false); }
+  }
+
+  if (carregando || !user) {
+    return (
+      <>
+        <Header />
+        <main id="main-content">
+          <Loading text="Verificando acesso..." />
+        </main>
+      </>
+    );
   }
 
   return (

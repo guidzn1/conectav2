@@ -4,9 +4,10 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { DashboardLayout, Sidebar, FormContainer } from "@/components/layout";
-import { Button, Input, Select, ErrorMessage } from "@/components/ui";
+import { Button, Input, Select, ErrorMessage, Loading } from "@/components/ui";
 import { profissionalService, especialidadeService } from "@/services";
 import type { Especialidade } from "@/types";
+import { useRequireAuth } from "@/hooks/useAuth";
 
 const ADMIN_LINKS = [
   { href: "/admin",                label: "Dashboard",         icon: "📊" },
@@ -17,6 +18,7 @@ const ADMIN_LINKS = [
 ];
 
 export default function AdminProfissionaisPage() {
+  const { user, carregando } = useRequireAuth(["administrador"]);
   const router = useRouter();
   const [especialidades, setEspecialidades] = useState<Especialidade[]>([]);
   const [loading, setLoading] = useState(false);
@@ -28,8 +30,9 @@ export default function AdminProfissionaisPage() {
   });
 
   useEffect(() => {
+    if (!user) return;
     especialidadeService.getEspecialidades().then(setEspecialidades).catch(() => {});
-  }, []);
+  }, [user]);
 
   function set(f: keyof typeof form, v: string) {
     setForm((p) => ({ ...p, [f]: v }));
@@ -48,6 +51,17 @@ export default function AdminProfissionaisPage() {
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : "Erro ao cadastrar.");
     } finally { setLoading(false); }
+  }
+
+  if (carregando || !user) {
+    return (
+      <>
+        <Header />
+        <main id="main-content">
+          <Loading text="Verificando acesso..." />
+        </main>
+      </>
+    );
   }
 
   return (

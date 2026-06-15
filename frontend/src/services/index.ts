@@ -38,8 +38,12 @@ export const agendaService = {
     api.get<Agenda[]>(`/agendas?profissionalId=${profissionalId}`),
   getHorariosDisponiveis: (profissionalId: string, data: string) =>
     api.get<Horario[]>(`/agendas/horarios?profissionalId=${profissionalId}&data=${data}`),
-  organizarHorarios: (agendaId: string, body: Partial<Agenda>) =>
-    api.put<Agenda>(`/agendas/${agendaId}`, body),
+  organizarHorarios: (agendaId: string, body: Partial<Agenda>) => {
+    if (agendaId === "novo") {
+      return api.post<Agenda>("/agendas", body);
+    }
+    return api.put<Agenda>(`/agendas/${agendaId}`, body);
+  },
 };
 
 // ── AGENDAMENTOS ──────────────────────────────────────────────

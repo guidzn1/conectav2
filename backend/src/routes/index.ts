@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { Especialidade, UnidadeSaude, Usuario, Agenda, Agendamento } from "../models";
-import { authMiddleware, adminOnly, AuthRequest } from "../middleware/auth";
+import { authMiddleware, adminOnly, role, AuthRequest } from "../middleware/auth";
 
 // ── ESPECIALIDADES ────────────────────────────────────────────
 export const especialidadesRouter = Router();
@@ -81,10 +81,17 @@ profissionaisRouter.get("/:id", async (req, res) => {
 profissionaisRouter.post("/", authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
   // Cria usuário do tipo profissionalSaude (admin registra pelo painel)
   try {
-    const { senha, ...resto } = req.body;
+    const { senha, cpf, ...resto } = req.body;
+    const cleanedCpf = cpf ? cpf.replace(/\D/g, "") : "";
+    if (!cleanedCpf) {
+      return res.status(400).json({ error: "CPF é obrigatório." });
+    }
+    const existe = await Usuario.findOne({ cpf: cleanedCpf });
+    if (existe) return res.status(409).json({ error: "CPF já cadastrado." });
+
     const bcrypt = await import("bcryptjs");
     const senhaHash = await bcrypt.hash(senha ?? "senha123", 10);
-    const pro = await Usuario.create({ ...resto, senhaHash, tipoUsuario: "profissionalSaude" });
+    const pro = await Usuario.create({ ...resto, cpf: cleanedCpf, senhaHash, tipoUsuario: "profissionalSaude" });
     const { senhaHash: _, ...proSafe } = pro.toObject();
     res.status(201).json(proSafe);
   } catch (err: any) {
@@ -109,17 +116,22 @@ agendasRouter.get("/horarios", authMiddleware, async (req: AuthRequest, res: Res
   const { profissionalId, data } = req.query;
   const agenda = await Agenda.findOne({ profissionalId, data });
   if (!agenda) {
-    // Retorna grade padrão se não existe agenda cadastrada
-    const padrao = ["08:00","09:00","10:00","11:00","13:00","14:00","15:00","16:00"]
-      .map((hora) => ({ hora, disponivel: true }));
-    return res.json(padrao);
+    return res.status(404).json({ error: "Médico não atende neste dia." });
   }
   return res.json(agenda.horarios);
 });
 
 agendasRouter.post("/", authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
   try {
-    const agenda = await Agenda.create(req.body);
+    const { profissionalId, data } = req.body;
+    let agenda = await Agenda.findOne({ profissionalId, data });
+    if (agenda) {
+      agenda.horarios = req.body.horarios;
+      agenda.unidadeId = req.body.unidadeId || agenda.unidadeId;
+      await agenda.save();
+    } else {
+      agenda = await Agenda.create(req.body);
+    }
     res.status(201).json(agenda);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -146,6 +158,42 @@ agendamentosRouter.get("/", authMiddleware, async (req: AuthRequest, res: Respon
 
 agendamentosRouter.post("/", authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
+    const { profissionalId, data, horario } = req.body;
+    if (!profissionalId || !data || !horario) {
+      return res.status(400).json({ error: "Campos profissionalId, data e horario são obrigatórios." });
+    }
+
+    const agenda = await Agenda.findOne({ profissionalId, data });
+    if (!agenda) {
+      return res.status(400).json({ error: "Médico não atende neste dia." });
+    }
+
+    const slot = agenda.horarios.find((h) => h.hora === horario);
+    if (!slot) {
+      return res.status(400).json({ error: "Médico não atende nesse horário." });
+    }
+
+    if (!slot.disponivel) {
+      return res.status(400).json({ error: "Horário indisponível/reservado." });
+    }
+
+    const agendaAtualizada = await Agenda.findOneAndUpdate(
+      {
+        profissionalId,
+        data,
+        "horarios.hora": horario,
+        "horarios.disponivel": true,
+      },
+      {
+        $set: { "horarios.$.disponivel": false },
+      },
+      { new: true }
+    );
+
+    if (!agendaAtualizada) {
+      return res.status(409).json({ error: "Horário indisponível/reservado." });
+    }
+
     const age = await Agendamento.create({ ...req.body, pacienteId: req.userId });
     res.status(201).json(age);
   } catch (err: any) {
@@ -154,13 +202,32 @@ agendamentosRouter.post("/", authMiddleware, async (req: AuthRequest, res: Respo
 });
 
 agendamentosRouter.patch("/:id/cancelar", authMiddleware, async (req: AuthRequest, res: Response) => {
-  const age = await Agendamento.findByIdAndUpdate(
-    req.params.id,
-    { status: "cancelado" },
-    { new: true }
-  );
-  if (!age) return res.status(404).json({ error: "Agendamento não encontrado." });
-  return res.json(age);
+  try {
+    const age = await Agendamento.findById(req.params.id);
+    if (!age) return res.status(404).json({ error: "Agendamento não encontrado." });
+
+    if (age.status === "cancelado") {
+      return res.json(age);
+    }
+
+    age.status = "cancelado";
+    await age.save();
+
+    await Agenda.findOneAndUpdate(
+      {
+        profissionalId: age.profissionalId,
+        data: age.data,
+        "horarios.hora": age.horario,
+      },
+      {
+        $set: { "horarios.$.disponivel": true },
+      }
+    );
+
+    return res.json(age);
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
 });
 
 // ── ADMIN STATS ───────────────────────────────────────────────
@@ -177,4 +244,97 @@ adminRouter.get("/stats", authMiddleware, adminOnly, async (_req, res) => {
       UnidadeSaude.countDocuments(),
     ]);
   res.json({ totalAgendamentos, agendamentosHoje, totalPacientes, totalProfissionais, totalUnidades });
+});
+
+// ── UBS ───────────────────────────────────────────────────────
+export const ubsRouter = Router();
+
+ubsRouter.get("/stats", authMiddleware, role("ubs"), async (req: AuthRequest, res: Response) => {
+  const unidadeId = req.body.unidadeId || (await Usuario.findById(req.userId))?.unidadeId;
+  if (!unidadeId) return res.status(400).json({ error: "UBS sem unidade vinculada." });
+  const hoje = new Date().toISOString().split("T")[0];
+  const [totalAgendamentos, agendamentosHoje, totalProfissionais] = await Promise.all([
+    Agendamento.countDocuments({ unidadeId }),
+    Agendamento.countDocuments({ unidadeId, data: hoje }),
+    Usuario.countDocuments({ tipoUsuario: "profissionalSaude", unidadeId }),
+  ]);
+  res.json({ totalAgendamentos, agendamentosHoje, totalProfissionais, unidadeId });
+});
+
+ubsRouter.get("/medicos", authMiddleware, role("ubs"), async (req: AuthRequest, res: Response) => {
+  const ubsUser = await Usuario.findById(req.userId);
+  if (!ubsUser?.unidadeId) return res.status(400).json({ error: "UBS sem unidade vinculada." });
+  const medicos = await Usuario.find({ tipoUsuario: "profissionalSaude", unidadeId: ubsUser.unidadeId }).select("-senhaHash");
+  res.json(medicos);
+});
+
+ubsRouter.post("/medicos", authMiddleware, role("ubs"), async (req: AuthRequest, res: Response) => {
+  try {
+    const ubsUser = await Usuario.findById(req.userId);
+    if (!ubsUser?.unidadeId) return res.status(400).json({ error: "UBS sem unidade vinculada." });
+    const { senha, cpf, ...resto } = req.body;
+    const cleanedCpf = cpf ? cpf.replace(/\D/g, "") : "";
+    if (!cleanedCpf) return res.status(400).json({ error: "CPF é obrigatório." });
+    const existe = await Usuario.findOne({ cpf: cleanedCpf });
+    if (existe) return res.status(409).json({ error: "CPF já cadastrado." });
+    const bcrypt = await import("bcryptjs");
+    const senhaHash = await bcrypt.hash(senha ?? "senha123", 10);
+    const pro = await Usuario.create({
+      ...resto, cpf: cleanedCpf, senhaHash,
+      tipoUsuario: "profissionalSaude",
+      unidadeId: ubsUser.unidadeId,
+    });
+    const { senhaHash: _, ...proSafe } = pro.toObject();
+    res.status(201).json(proSafe);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+ubsRouter.post("/agendas", authMiddleware, role("ubs"), async (req: AuthRequest, res: Response) => {
+  try {
+    const ubsUser = await Usuario.findById(req.userId);
+    if (!ubsUser?.unidadeId) return res.status(400).json({ error: "UBS sem unidade vinculada." });
+    const { profissionalId, data } = req.body;
+    let agenda = await Agenda.findOne({ profissionalId, data });
+    if (agenda) {
+      agenda.horarios = req.body.horarios;
+      agenda.unidadeId = ubsUser.unidadeId;
+      await agenda.save();
+    } else {
+      agenda = await Agenda.create({ ...req.body, unidadeId: ubsUser.unidadeId });
+    }
+    res.status(201).json(agenda);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+ubsRouter.get("/agendamentos", authMiddleware, role("ubs"), async (req: AuthRequest, res: Response) => {
+  const ubsUser = await Usuario.findById(req.userId);
+  if (!ubsUser?.unidadeId) return res.status(400).json({ error: "UBS sem unidade vinculada." });
+  const { data } = req.query;
+  const filtro: Record<string, unknown> = { unidadeId: ubsUser.unidadeId };
+  if (data) filtro.data = data;
+  const dados = await Agendamento.find(filtro).sort({ data: 1, horario: 1 });
+  res.json(dados);
+});
+
+// ── MÉDICO ────────────────────────────────────────────────────
+export const medicoRouter = Router();
+
+medicoRouter.get("/consultas", authMiddleware, role("profissionalSaude"), async (req: AuthRequest, res: Response) => {
+  const { data } = req.query;
+  const filtro: Record<string, unknown> = { profissionalId: req.userId };
+  if (data) filtro.data = data;
+  const dados = await Agendamento.find(filtro).sort({ data: 1, horario: 1 });
+  res.json(dados);
+});
+
+medicoRouter.get("/horarios", authMiddleware, role("profissionalSaude"), async (req: AuthRequest, res: Response) => {
+  const { data } = req.query;
+  const filtro: Record<string, unknown> = { profissionalId: req.userId };
+  if (data) filtro.data = data;
+  const dados = await Agenda.find(filtro).sort({ data: 1 });
+  res.json(dados);
 });

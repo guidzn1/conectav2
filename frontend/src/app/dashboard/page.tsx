@@ -9,7 +9,7 @@ import { Card, Badge, Button, Loading, EmptyState, ErrorMessage } from "@/compon
 import { agendamentoService, profissionalService, especialidadeService } from "@/services";
 import type { Agendamento, ProfissionalSaude, Especialidade } from "@/types";
 import { formatDate, statusLabel, statusColor } from "@/utils";
-import { useAuth } from "@/hooks/useAuth";
+import { useRequireAuth } from "@/hooks/useAuth";
 
 const PACIENTE_LINKS = [
   { href: "/dashboard",                  label: "Meus Agendamentos", icon: "📅" },
@@ -19,7 +19,7 @@ const PACIENTE_LINKS = [
 ];
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, carregando } = useRequireAuth(["paciente"]);
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [profissionais, setProfissionais] = useState<Record<string, ProfissionalSaude>>({});
   const [especialidades, setEspecialidades] = useState<Record<string, Especialidade>>({});
@@ -65,6 +65,17 @@ export default function DashboardPage() {
 
   const proximos  = agendamentos.filter((a) => a.status !== "cancelado" && a.status !== "concluido");
   const anteriores = agendamentos.filter((a) => a.status === "concluido" || a.status === "cancelado");
+
+  if (carregando || !user) {
+    return (
+      <>
+        <Header />
+        <main id="main-content">
+          <Loading text="Verificando acesso..." />
+        </main>
+      </>
+    );
+  }
 
   return (
     <>

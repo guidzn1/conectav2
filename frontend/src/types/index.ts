@@ -8,7 +8,7 @@ export interface Usuario {
   cpf: string;
   telefone: string;
   email: string;
-  tipoUsuario: "paciente" | "administrador" | "profissionalSaude";
+  tipoUsuario: "paciente" | "administrador" | "profissionalSaude" | "ubs";
   criadoEm?: string;
 }
 
@@ -22,10 +22,16 @@ export interface Administrador extends Usuario {
   nivelAcesso: string;
 }
 
+export interface Ubs extends Usuario {
+  tipoUsuario: "ubs";
+  unidadeId?: string;
+}
+
 export interface ProfissionalSaude extends Usuario {
   tipoUsuario: "profissionalSaude";
   registroProfissional: string;
   especialidadeId: string;
+  unidadeId?: string;
   agendas?: Agenda[];
   foto?: string;
   bio?: string;

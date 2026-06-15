@@ -7,6 +7,7 @@ import { Footer } from "@/components/layout/Footer";
 import { DashboardLayout, Sidebar } from "@/components/layout";
 import { Card, Loading, ErrorMessage, Button } from "@/components/ui";
 import { adminService } from "@/services";
+import { useRequireAuth } from "@/hooks/useAuth";
 
 const ADMIN_LINKS = [
   { href: "/admin",                    label: "Dashboard",            icon: "📊" },
@@ -25,16 +26,29 @@ interface Stats {
 }
 
 export default function AdminDashboardPage() {
+  const { user, carregando } = useRequireAuth(["administrador"]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro]  = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) return;
     adminService.getDashboardStats()
       .then(setStats)
       .catch(() => setErro("Erro ao carregar dados."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [user]);
+
+  if (carregando || !user) {
+    return (
+      <>
+        <Header />
+        <main id="main-content">
+          <Loading text="Verificando acesso..." />
+        </main>
+      </>
+    );
+  }
 
   return (
     <>

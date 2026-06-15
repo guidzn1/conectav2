@@ -17,12 +17,17 @@ router.post("/register", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Campos obrigatórios faltando." });
     }
 
-    const existe = await Usuario.findOne({ $or: [{ cpf }, { email }] });
+    if (tipoUsuario !== "paciente") {
+      return res.status(400).json({ error: "Apenas pacientes podem se cadastrar publicamente." });
+    }
+
+    const cleanedCpf = cpf.replace(/\D/g, "");
+    const existe = await Usuario.findOne({ $or: [{ cpf: cleanedCpf }, { email }] });
     if (existe) return res.status(409).json({ error: "CPF ou e-mail já cadastrado." });
 
     const senhaHash = await bcrypt.hash(senha, 10);
     const usuario = await Usuario.create({
-      nome, cpf, email, telefone: telefone ?? "", senhaHash, tipoUsuario,
+      nome, cpf: cleanedCpf, email, telefone: telefone ?? "", senhaHash, tipoUsuario,
       nivelAcesso, registroProfissional, especialidadeId,
     });
 

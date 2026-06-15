@@ -8,6 +8,8 @@ import { Card, Loading, ErrorMessage, Input } from "@/components/ui";
 import { especialidadeService } from "@/services";
 import type { Especialidade } from "@/types";
 
+import { useRequireAuth } from "@/hooks/useAuth";
+
 const WIZARD_STEPS = ["Especialidade", "Unidade", "Profissional", "Data e Horário", "Confirmação"];
 
 const ICONS: Record<string, string> = {
@@ -18,6 +20,7 @@ const ICONS: Record<string, string> = {
 };
 
 export default function EspecialidadePage() {
+  const { user, carregando } = useRequireAuth(["paciente"]);
   const router = useRouter();
   const [especialidades, setEspecialidades] = useState<Especialidade[]>([]);
   const [filtro, setFiltro] = useState("");
@@ -25,11 +28,12 @@ export default function EspecialidadePage() {
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) return;
     especialidadeService.getEspecialidades()
       .then(setEspecialidades)
       .catch(() => setErro("Erro ao carregar especialidades."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [user]);
 
   function handleSelect(esp: Especialidade) {
     sessionStorage.setItem("wizard_especialidade", JSON.stringify(esp));
@@ -39,6 +43,17 @@ export default function EspecialidadePage() {
   const filtradas = especialidades.filter((e) =>
     e.nome.toLowerCase().includes(filtro.toLowerCase())
   );
+
+  if (carregando || !user) {
+    return (
+      <>
+        <Header />
+        <main id="main-content">
+          <Loading text="Verificando acesso..." />
+        </main>
+      </>
+    );
+  }
 
   return (
     <>
@@ -84,7 +99,6 @@ export default function EspecialidadePage() {
                       </span>
                       <span className="text-sm font-semibold text-brand-800">{esp.nome}</span>
                     </Card>
-                    </button>
                   </li>
                 ))}
               </ul>

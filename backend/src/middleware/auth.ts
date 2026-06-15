@@ -26,9 +26,19 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
 }
 
 export function adminOnly(req: AuthRequest, res: Response, next: NextFunction): void {
-  if (req.tipoUsuario !== "administrador") {
-    res.status(403).json({ error: "Acesso restrito ao administrador." });
+  if (req.tipoUsuario !== "administrador" && req.tipoUsuario !== "ubs") {
+    res.status(403).json({ error: "Acesso restrito ao administrador/UBS." });
     return;
   }
   next();
+}
+
+export function role(...tipos: string[]) {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!tipos.includes(req.tipoUsuario ?? "")) {
+      res.status(403).json({ error: "Acesso negado para este perfil." });
+      return;
+    }
+    next();
+  };
 }
