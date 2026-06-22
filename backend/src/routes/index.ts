@@ -2,6 +2,33 @@ import { Router, Request, Response } from "express";
 import { Especialidade, UnidadeSaude, Usuario, Agenda, Agendamento } from "../models";
 import { authMiddleware, adminOnly, role, AuthRequest } from "../middleware/auth";
 
+
+// ── USUÁRIOS ─────────────────────────────────────────────────
+export const usuariosRouter = Router();
+
+usuariosRouter.get("/:id", authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const usuario = await Usuario.findById(req.params.id).select("-senhaHash");
+
+    if (!usuario) {
+      return res.status(404).json({ error: "Usuário não encontrado." });
+    }
+
+    const isSelf = req.userId === usuario.id;
+    const isMedico = req.tipoUsuario === "profissionalSaude";
+    const isAdmin = req.tipoUsuario === "administrador";
+    const isUbs = req.tipoUsuario === "ubs";
+
+    if (!isSelf && !isMedico && !isAdmin && !isUbs) {
+      return res.status(403).json({ error: "Você não tem permissão para acessar este usuário." });
+    }
+
+    return res.json(usuario);
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
+});
+
 // ── ESPECIALIDADES ────────────────────────────────────────────
 export const especialidadesRouter = Router();
 
@@ -161,6 +188,30 @@ agendasRouter.put("/:id", authMiddleware, adminOnly, async (req: AuthRequest, re
 
 // ── AGENDAMENTOS ──────────────────────────────────────────────
 export const agendamentosRouter = Router();
+
+agendamentosRouter.get("/:id", authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const age = await Agendamento.findById(req.params.id);
+
+    if (!age) {
+      return res.status(404).json({ error: "Agendamento não encontrado." });
+    }
+
+    const podeVer =
+      req.tipoUsuario === "administrador" ||
+      req.tipoUsuario === "ubs" ||
+      age.pacienteId === req.userId ||
+      age.profissionalId === req.userId;
+
+    if (!podeVer) {
+      return res.status(403).json({ error: "Você não tem permissão para acessar este agendamento." });
+    }
+
+    return res.json(age);
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
+});
 
 agendamentosRouter.get("/", authMiddleware, async (req: AuthRequest, res: Response) => {
   const { pacienteId, profissionalId, data } = req.query;

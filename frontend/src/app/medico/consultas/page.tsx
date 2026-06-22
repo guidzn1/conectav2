@@ -12,9 +12,18 @@ import {
   EmptyState,
   Button,
 } from "@/components/ui";
-import { agendamentoService, especialidadeService } from "@/services";
-import type { Agendamento, Especialidade, FinalizarConsultaDTO } from "@/types";
-import { formatDate, statusLabel } from "@/utils";
+import {
+  agendamentoService,
+  especialidadeService,
+  usuarioService,
+} from "@/services";
+import type {
+  Agendamento,
+  Especialidade,
+  FinalizarConsultaDTO,
+  Usuario,
+} from "@/types";
+import { formatCPF, formatDate, statusLabel } from "@/utils";
 import { useRequireAuth } from "@/hooks/useAuth";
 
 const MEDICO_LINKS = [
@@ -34,17 +43,6 @@ const STATUS_OPTIONS: { value: StatusFiltro; label: string }[] = [
   { value: "cancelado", label: "Cancelado" },
 ];
 
-function getStatusVariant(status: Agendamento["status"]): BadgeVariant {
-  if (status === "confirmado") return "success";
-  if (status === "cancelado") return "error";
-  if (status === "concluido") return "info";
-  return "warning";
-}
-
-function getHojeISO() {
-  return new Date().toISOString().split("T")[0];
-}
-
 const EMPTY_FORM: FinalizarConsultaDTO = {
   queixaPrincipal: "",
   diagnostico: "",
@@ -53,10 +51,22 @@ const EMPTY_FORM: FinalizarConsultaDTO = {
   observacoes: "",
 };
 
+function getHojeISO() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function getStatusVariant(status: Agendamento["status"]): BadgeVariant {
+  if (status === "confirmado") return "success";
+  if (status === "cancelado") return "error";
+  if (status === "concluido") return "info";
+  return "warning";
+}
+
 export default function MedicoConsultasPage() {
   const { user, carregando } = useRequireAuth(["profissionalSaude"]);
 
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
+  const [pacientes, setPacientes] = useState<Record<string, Usuario>>({});
   const [especialidades, setEspecialidades] = useState<Record<string, Especialidade>>({});
 
   const [loading, setLoading] = useState(true);
@@ -83,7 +93,13 @@ export default function MedicoConsultasPage() {
           especialidadeService.getEspecialidades(),
         ]);
 
+        const pacienteIds = Array.from(new Set(ages.map((a) => a.pacienteId)));
+        const pacientesLista = await Promise.all(
+          pacienteIds.map(async (id) => usuarioService.getUsuarioById(id))
+        );
+
         setAgendamentos(ages);
+        setPacientes(Object.fromEntries(pacientesLista.map((p) => [p.id, p])));
         setEspecialidades(Object.fromEntries(esps.map((e) => [e.id, e])));
       } catch {
         setErro("Erro ao carregar consultas. Tente novamente.");
@@ -135,7 +151,9 @@ export default function MedicoConsultasPage() {
   async function salvarLaudo() {
     if (!consultaSelecionada) return;
 
-    const temConteudo = Object.values(formLaudo).some((valor) => String(valor ?? "").trim().length > 0);
+    const temConteudo = Object.values(formLaudo).some(
+      (valor) => String(valor ?? "").trim().length > 0
+    );
 
     if (!temConteudo) {
       setErro("Preencha pelo menos um campo do atendimento antes de finalizar.");
@@ -147,7 +165,10 @@ export default function MedicoConsultasPage() {
       setErro(null);
       setSucesso(null);
 
-      const atualizado = await agendamentoService.finalizarConsulta(consultaSelecionada.id, formLaudo);
+      const atualizado = await agendamentoService.finalizarConsulta(
+        consultaSelecionada.id,
+        formLaudo
+      );
 
       setAgendamentos((prev) =>
         prev.map((item) => (item.id === atualizado.id ? atualizado : item))
@@ -191,7 +212,7 @@ export default function MedicoConsultasPage() {
                 </h1>
 
                 <p className="text-neutral-500 text-sm mt-1">
-                  Dr(a). {user.nome} — visualize, acompanhe e finalize os atendimentos.
+                  Dr(a). {user.nome} — visualize os dados do paciente e finalize atendimentos.
                 </p>
               </div>
 
@@ -262,9 +283,8 @@ export default function MedicoConsultasPage() {
           </section>
 
           {erro && <ErrorMessage message={erro} />}
-
           {sucesso && (
-            <div className="rounded-input border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
+            <div role="status" className="rounded-card border border-green-200 bg-green-50 text-green-800 px-4 py-3 text-sm font-semibold">
               {sucesso}
             </div>
           )}
@@ -292,142 +312,165 @@ export default function MedicoConsultasPage() {
               />
             ) : (
               <ul role="list" className="flex flex-col gap-3">
-                {consultasFiltradas.map((a) => (
-                  <li key={a.id}>
-                    <Card padding="md" className="border-neutral-200 hover:border-brand-200 transition-colors">
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div className="flex items-start gap-3">
-                          <div className="w-11 h-11 rounded-full bg-brand-50 text-brand-700 flex items-center justify-center font-bold shrink-0" aria-hidden="true">
-                            P
-                          </div>
+                {consultasFiltradas.map((a) => {
+                  const paciente = pacientes[a.pacienteId];
+                  const especialidade = especialidades[a.especialidadeId];
+                  const podeFinalizar = a.status === "confirmado" || a.status === "pendente";
 
-                          <div>
-                            <p className="font-poppins font-semibold text-brand-800 text-sm">
-                              Paciente #{a.pacienteId.slice(-4)}
-                            </p>
+                  return (
+                    <li key={a.id}>
+                      <Card padding="md" className="border-neutral-200 hover:border-brand-200 transition-colors">
+                        <div className="flex flex-col gap-4">
+                          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                              <div
+                                className="w-12 h-12 rounded-full bg-brand-50 text-brand-700 flex items-center justify-center font-bold shrink-0"
+                                aria-hidden="true"
+                              >
+                                {paciente?.nome?.charAt(0).toUpperCase() ?? "P"}
+                              </div>
 
-                            <p className="text-sm text-neutral-600 mt-1">
-                              {especialidades[a.especialidadeId]?.nome ?? "Especialidade não informada"}
-                            </p>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-poppins font-semibold text-brand-800 text-sm">
+                                    {paciente?.nome ?? `Paciente #${a.pacienteId.slice(-4)}`}
+                                  </p>
 
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-neutral-500">
-                              <span>Data: {formatDate(a.data)}</span>
-                              <span>Horário: {a.horario}</span>
-                              <span>Atendimento: {a.tipoVisita === "telemedicina" ? "Telemedicina" : "Presencial"}</span>
+                                  <Badge variant={getStatusVariant(a.status)}>
+                                    {statusLabel(a.status)}
+                                  </Badge>
+                                </div>
+
+                                <p className="text-sm text-neutral-600 mt-1">
+                                  {especialidade?.nome ?? "Especialidade não informada"}
+                                </p>
+
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-neutral-500">
+                                  <span>Data: {formatDate(a.data)}</span>
+                                  <span>Horário: {a.horario}</span>
+                                  <span>CPF: {paciente?.cpf ? formatCPF(paciente.cpf) : "—"}</span>
+                                  <span>Tipo: {a.tipoVisita === "telemedicina" ? "Telemedicina" : "Presencial"}</span>
+                                </div>
+                              </div>
                             </div>
 
-                            {a.status === "concluido" && a.laudo && (
-                              <p className="mt-2 text-xs text-brand-700 font-semibold">
-                                Laudo salvo para o paciente.
-                              </p>
-                            )}
+                            <div className="flex flex-wrap justify-start md:justify-end gap-2">
+                              {a.status === "concluido" && <Badge variant="info">Laudo salvo</Badge>}
+
+                              {podeFinalizar && (
+                                <Button size="sm" onClick={() => abrirFinalizacao(a)}>
+                                  Finalizar consulta
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="flex flex-wrap md:flex-col items-start md:items-end gap-2">
-                          <Badge variant={getStatusVariant(a.status)}>{statusLabel(a.status)}</Badge>
-
-                          {a.status !== "cancelado" && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={a.status === "concluido" ? "outline" : "primary"}
-                              onClick={() => abrirFinalizacao(a)}
-                            >
-                              {a.status === "concluido" ? "Ver/editar laudo" : "Finalizar consulta"}
-                            </Button>
+                          {a.status === "concluido" && a.laudo && (
+                            <div className="border-t border-neutral-100 pt-4">
+                              <p className="text-xs font-bold uppercase tracking-wide text-neutral-400 mb-2">
+                                Registro salvo
+                              </p>
+                              <p className="text-sm text-neutral-600 line-clamp-2">
+                                {a.laudo.diagnostico || a.laudo.conduta || a.laudo.observacoes || "Consulta finalizada com registro clínico."}
+                              </p>
+                            </div>
                           )}
                         </div>
-                      </div>
-                    </Card>
-                  </li>
-                ))}
+                      </Card>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
         </div>
       </DashboardLayout>
 
-      <Footer />
-
       {consultaSelecionada && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-labelledby="modal-finalizar-title">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-cardLg shadow-modal border border-neutral-100">
-            <div className="p-6 border-b border-neutral-100 flex items-start justify-between gap-4">
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4 py-6" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-cardLg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="border-b border-neutral-100 p-6 flex items-start justify-between gap-4">
               <div>
-                <h2 id="modal-finalizar-title" className="font-poppins text-2xl font-bold text-brand-800">
-                  Finalizar consulta
+                <p className="text-xs font-bold uppercase tracking-wide text-brand-700 mb-2">
+                  Finalizar atendimento
+                </p>
+
+                <h2 className="font-poppins text-2xl font-bold text-brand-800">
+                  {pacientes[consultaSelecionada.pacienteId]?.nome ?? "Paciente"}
                 </h2>
 
                 <p className="text-sm text-neutral-500 mt-1">
-                  Paciente #{consultaSelecionada.pacienteId.slice(-4)} — {formatDate(consultaSelecionada.data)} às {consultaSelecionada.horario}
+                  {formatDate(consultaSelecionada.data)} às {consultaSelecionada.horario} • {especialidades[consultaSelecionada.especialidadeId]?.nome ?? "Especialidade"}
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={fecharFinalizacao}
-                className="w-9 h-9 rounded-full text-neutral-500 hover:bg-neutral-100"
+                className="w-9 h-9 rounded-full hover:bg-neutral-100 text-neutral-500 text-xl"
                 aria-label="Fechar janela de finalização"
               >
                 ×
               </button>
             </div>
 
-            <div className="p-6 flex flex-col gap-4">
+            <div className="p-6 flex flex-col gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-brand-50 border border-brand-100 rounded-card p-4">
+                <InfoPaciente label="CPF" value={formatCPF(pacientes[consultaSelecionada.pacienteId]?.cpf ?? "")} />
+                <InfoPaciente label="E-mail" value={pacientes[consultaSelecionada.pacienteId]?.email ?? "—"} />
+                <InfoPaciente label="Telefone" value={pacientes[consultaSelecionada.pacienteId]?.telefone ?? "—"} />
+              </div>
+
               <CampoLaudo
-                id="queixaPrincipal"
                 label="Queixa principal"
-                placeholder="Ex.: dor de cabeça há 3 dias, febre, retorno de exame..."
                 value={formLaudo.queixaPrincipal ?? ""}
-                onChange={(value) => atualizarCampo("queixaPrincipal", value)}
+                placeholder="Ex.: dor de cabeça há três dias, febre, retorno de exame..."
+                onChange={(valor) => atualizarCampo("queixaPrincipal", valor)}
               />
 
               <CampoLaudo
-                id="diagnostico"
                 label="Diagnóstico / hipótese diagnóstica"
-                placeholder="Ex.: quadro compatível com..."
                 value={formLaudo.diagnostico ?? ""}
-                onChange={(value) => atualizarCampo("diagnostico", value)}
+                placeholder="Registre o diagnóstico ou hipótese principal."
+                onChange={(valor) => atualizarCampo("diagnostico", valor)}
               />
 
               <CampoLaudo
-                id="conduta"
                 label="Conduta"
-                placeholder="Ex.: solicitado exame, orientado retorno, encaminhamento..."
                 value={formLaudo.conduta ?? ""}
-                onChange={(value) => atualizarCampo("conduta", value)}
+                placeholder="Informe a conduta adotada, orientações e encaminhamentos."
+                onChange={(valor) => atualizarCampo("conduta", valor)}
               />
 
               <CampoLaudo
-                id="prescricao"
-                label="Prescrição / recomendações"
-                placeholder="Ex.: medicação prescrita, cuidados, repouso, hidratação..."
+                label="Prescrição"
                 value={formLaudo.prescricao ?? ""}
-                onChange={(value) => atualizarCampo("prescricao", value)}
+                placeholder="Registre a prescrição, quando houver."
+                onChange={(valor) => atualizarCampo("prescricao", valor)}
               />
 
               <CampoLaudo
-                id="observacoes"
                 label="Observações"
-                placeholder="Informações adicionais sobre o atendimento."
                 value={formLaudo.observacoes ?? ""}
-                onChange={(value) => atualizarCampo("observacoes", value)}
+                placeholder="Anotações complementares do atendimento."
+                onChange={(valor) => atualizarCampo("observacoes", valor)}
               />
-            </div>
 
-            <div className="p-6 border-t border-neutral-100 flex flex-col sm:flex-row sm:justify-end gap-3">
-              <Button type="button" variant="outline" onClick={fecharFinalizacao} disabled={salvandoLaudo}>
-                Cancelar
-              </Button>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-2">
+                <Button type="button" variant="ghost" onClick={fecharFinalizacao} disabled={salvandoLaudo}>
+                  Cancelar
+                </Button>
 
-              <Button type="button" onClick={salvarLaudo} loading={salvandoLaudo}>
-                Salvar laudo e concluir
-              </Button>
+                <Button type="button" loading={salvandoLaudo} onClick={salvarLaudo}>
+                  Salvar laudo e concluir
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      <Footer />
     </>
   );
 }
@@ -444,41 +487,48 @@ function ResumoCard({
   return (
     <Card padding="md" className="border-neutral-200">
       <div className="flex flex-col gap-1">
-        <span className="text-3xl font-poppins font-bold text-brand-800">{value}</span>
+        <span className="text-3xl font-poppins font-bold text-brand-800">
+          {value}
+        </span>
+
         <span className="text-sm font-bold text-neutral-700">{label}</span>
+
         <span className="text-xs text-neutral-500">{description}</span>
       </div>
     </Card>
   );
 }
 
+function InfoPaciente({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[11px] font-bold uppercase tracking-wide text-brand-700">{label}</p>
+      <p className="text-sm text-neutral-700 break-words">{value || "—"}</p>
+    </div>
+  );
+}
+
 function CampoLaudo({
-  id,
   label,
-  placeholder,
   value,
+  placeholder,
   onChange,
 }: {
-  id: string;
   label: string;
-  placeholder: string;
   value: string;
-  onChange: (value: string) => void;
+  placeholder: string;
+  onChange: (valor: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-bold text-neutral-700">
-        {label}
-      </label>
-
+    <label className="flex flex-col gap-1">
+      <span className="text-sm font-bold text-neutral-700">{label}</span>
       <textarea
-        id={id}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
         rows={3}
-        className="w-full border border-neutral-300 rounded-input px-3 py-2 text-sm text-neutral-700 placeholder:text-neutral-400 resize-y focus:outline-none focus:ring-2 focus:ring-brand-700 focus:border-brand-700"
+        className="w-full border border-neutral-300 rounded-input bg-white px-4 py-3 text-sm text-neutral-700 placeholder:text-neutral-400 outline-none focus:ring-2 focus:ring-brand-700 focus:border-brand-700 resize-y"
       />
-    </div>
+    </label>
   );
 }

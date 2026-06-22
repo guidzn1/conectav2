@@ -45,26 +45,6 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/agendamento/confirmacao/page.js"
-    ],
-    "/medico/login/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/medico/login/page.js"
-    ],
-    "/medico/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/medico/page.js"
-    ],
-    "/medico/consultas/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/medico/consultas/page.js"
-    ],
-    "/medico/horarios/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/medico/horarios/page.js"
     ]
   }
 }

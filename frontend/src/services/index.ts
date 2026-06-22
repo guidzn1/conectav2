@@ -8,7 +8,14 @@ import type {
   Agendamento,
   CriarAgendamentoDTO,
   FinalizarConsultaDTO,
+  Usuario,
 } from "@/types";
+
+
+// ── USUÁRIOS ─────────────────────────────────────────────────
+export const usuarioService = {
+  getUsuarioById: (id: string) => api.get<Usuario>(`/usuarios/${id}`),
+};
 
 // ── ESPECIALIDADES ────────────────────────────────────────────
 export const especialidadeService = {
@@ -68,6 +75,9 @@ export const agendaService = {
 
 // ── AGENDAMENTOS ──────────────────────────────────────────────
 export const agendamentoService = {
+  getAgendamentoById: (id: string) =>
+    api.get<Agendamento>(`/agendamentos/${id}`),
+
   getMeusAgendamentos: (pacienteId: string) =>
     api.get<Agendamento[]>(`/agendamentos?pacienteId=${pacienteId}`),
 
