@@ -1,78 +1,87 @@
+import Image from "next/image";
 import Link from "next/link";
 
 const LINKS = {
   vacinacao: [
-    { label: "Calendário de Vacinação",           href: "#" },
+    { label: "Calendário de Vacinação", href: "#" },
     { label: "Calendário Técnico Nacional de Vacinação", href: "#" },
-    { label: "Segurança das Vacinas",              href: "#" },
-    { label: "Vacinas para Grupos Especiais",      href: "#" },
+    { label: "Segurança das Vacinas", href: "#" },
+    { label: "Vacinas para Grupos Especiais", href: "#" },
   ],
   acesso: [
-    { label: "Institucional",           href: "#" },
-    { label: "Ações e Programas",       href: "#" },
-    { label: "Agenda de Autoridades",   href: "#" },
-    { label: "Auditorias",              href: "#" },
+    { label: "Institucional", href: "#" },
+    { label: "Ações e Programas", href: "#" },
+    { label: "Agenda de Autoridades", href: "#" },
+    { label: "Auditorias", href: "#" },
   ],
   sobre: [
-    { label: "Quem somos",            href: "#" },
-    { label: "Termos de uso",         href: "#" },
+    { label: "Quem somos", href: "#" },
+    { label: "Termos de uso", href: "#" },
     { label: "Política de privacidade", href: "#" },
   ],
   ajuda: [
     { label: "Dúvidas frequentes (FAQ)", href: "#" },
-    { label: "Suporte técnico",          href: "#" },
-    { label: "Contato",                  href: "#" },
+    { label: "Suporte técnico", href: "#" },
+    { label: "Contato", href: "#" },
   ],
   rapidos: [
     { label: "Área do médico", href: "/medico/login" },
-    { label: "Cadastre-se",    href: "/cadastro" },
-    { label: "Conecta SUS",    href: "/" },
+    { label: "Cadastre-se", href: "/cadastro" },
+    { label: "Conecta SUS", href: "/" },
   ],
 };
 
 export function Footer() {
   return (
-    <footer className="bg-brand-800 text-white" role="contentinfo">
-      <div className="container-app py-10">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-8">
-          {/* Logo */}
-          <div className="col-span-2 sm:col-span-1 flex flex-col gap-2">
-            <div className="text-3xl font-poppins font-black leading-none">
-              CONECTA<br />
-              <span className="text-brand-300">SUS</span>
-              <span className="text-brand-400 text-2xl">+</span>
-            </div>
+    <footer
+      className="bg-white text-neutral-700 border-t border-neutral-200"
+      role="contentinfo"
+    >
+      <div className="container-app py-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-10 items-start">
+          <div className="flex items-start">
+            <Image
+              src="/images/logovertical.png"
+              alt="Conecta SUS+"
+              width={120}
+              height={150}
+              className="object-contain"
+            />
           </div>
 
-          <FooterCol title="Vacinação"          links={LINKS.vacinacao} />
+          <FooterCol title="Vacinação" links={LINKS.vacinacao} />
           <FooterCol title="Acesso à Informação" links={LINKS.acesso} />
-          <FooterCol title="Sobre"              links={LINKS.sobre} />
-          <FooterCol title="Ajuda"              links={LINKS.ajuda} />
-          <FooterCol title="Acessos Rápidos"    links={LINKS.rapidos} />
+          <FooterCol title="Sobre" links={LINKS.sobre} />
+          <FooterCol title="Ajuda" links={LINKS.ajuda} />
+          <FooterCol title="Acessos Rápidos" links={LINKS.rapidos} />
         </div>
-      </div>
-      <div className="border-t border-brand-700 py-4">
-        <p className="container-app text-center text-xs text-brand-300">
-          © 2025 Projeto desenvolvido por alunos da UNIFESSPA para a disciplina de Interação Humano-Computador.
-          Todos os direitos reservados.
-        </p>
       </div>
     </footer>
   );
 }
 
-function FooterCol({ title, links }: { title: string; links: { label: string; href: string }[] }) {
+function FooterCol({
+  title,
+  links,
+}: {
+  title: string;
+  links: { label: string; href: string }[];
+}) {
   return (
     <nav aria-labelledby={`footer-${title}`}>
-      <h3 id={`footer-${title}`} className="text-xs font-bold uppercase tracking-widest text-brand-300 mb-3">
+      <h3
+        id={`footer-${title}`}
+        className="text-[10px] font-bold uppercase tracking-normal text-neutral-700 mb-5"
+      >
         {title}
       </h3>
-      <ul className="flex flex-col gap-2">
+
+      <ul className="flex flex-col gap-4">
         {links.map(({ label, href }) => (
           <li key={label}>
             <Link
               href={href}
-              className="text-xs text-white/70 hover:text-white no-underline transition-colors"
+              className="text-[12px] leading-tight text-brand-700 hover:text-brand-800 no-underline"
             >
               {label}
             </Link>

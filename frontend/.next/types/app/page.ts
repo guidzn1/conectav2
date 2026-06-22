@@ -1,4 +1,4 @@
-// File: /Users/emanueloliveirasantos/Desktop/conecta-sus/frontend/src/app/page.tsx
+// File: /Users/guilhermelima/Documents/GitHub/conectav2/frontend/src/app/page.tsx
 import * as entry from '../../../src/app/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

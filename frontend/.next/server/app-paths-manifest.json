@@ -1,12 +1,8 @@
 {
-  "/agendamento/especialidade/page": "app/agendamento/especialidade/page.js",
-  "/medico/page": "app/medico/page.js",
   "/page": "app/page.js",
   "/login/page": "app/login/page.js",
-  "/dashboard/perfil/page": "app/dashboard/perfil/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
-  "/dashboard/historico/page": "app/dashboard/historico/page.js",
-  "/agendamento/unidade/page": "app/agendamento/unidade/page.js",
-  "/agendamento/medico/page": "app/agendamento/medico/page.js",
-  "/agendamento/horario/page": "app/agendamento/horario/page.js"
+  "/medico/login/page": "app/medico/login/page.js",
+  "/medico/page": "app/medico/page.js",
+  "/medico/consultas/page": "app/medico/consultas/page.js",
+  "/medico/horarios/page": "app/medico/horarios/page.js"
 }
