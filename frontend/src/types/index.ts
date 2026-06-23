@@ -45,7 +45,7 @@ export interface UnidadeSaude {
   especialidadeIds: string[];
   latitude?: number;
   longitude?: number;
-  distancia?: number; // km, calculado via geolocalização
+  distancia?: number;
 }
 
 export interface Especialidade {
@@ -59,13 +59,32 @@ export interface Agenda {
   id: string;
   profissionalId: string;
   unidadeId: string;
-  data: string; // ISO date string
+  data: string;
   horarios: Horario[];
 }
 
 export interface Horario {
-  hora: string; // "09:00", "10:00"...
+  hora: string;
   disponivel: boolean;
+}
+
+export interface LaudoConsulta {
+  queixaPrincipal?: string;
+  diagnostico?: string;
+  conduta?: string;
+  prescricao?: string;
+  observacoes?: string;
+  profissionalId?: string;
+  criadoEm?: string;
+  atualizadoEm?: string;
+}
+
+export interface FinalizarConsultaDTO {
+  queixaPrincipal?: string;
+  diagnostico?: string;
+  conduta?: string;
+  prescricao?: string;
+  observacoes?: string;
 }
 
 export interface Agendamento {
@@ -78,11 +97,13 @@ export interface Agendamento {
   horario: string;
   status: "pendente" | "confirmado" | "cancelado" | "concluido";
   criadoEm: string;
+  primeiraConsulta?: boolean;
   primeivaConsulta?: boolean;
   tipoVisita?: "presencial" | "telemedicina";
+  laudo?: LaudoConsulta;
+  finalizadoEm?: string;
 }
 
-// DTO para criação de agendamento
 export interface CriarAgendamentoDTO {
   profissionalId: string;
   unidadeId: string;
@@ -93,7 +114,6 @@ export interface CriarAgendamentoDTO {
   tipoVisita: "presencial" | "telemedicina";
 }
 
-// Tipos auxiliares de UI
 export type StatusAgendamento = Agendamento["status"];
 
 export type TipoUsuario = Usuario["tipoUsuario"];

@@ -20,10 +20,10 @@ export interface IUsuario extends Document {
   email: string;
   senhaHash: string;
   tipoUsuario: "paciente" | "administrador" | "profissionalSaude" | "ubs";
-  nivelAcesso?: string;          // Administrador
-  registroProfissional?: string; // ProfissionalSaude
-  especialidadeId?: string;      // ProfissionalSaude
-  unidadeId?: string;          // Links médico/UBS user to UnidadeSaude
+  nivelAcesso?: string;
+  registroProfissional?: string;
+  especialidadeId?: string;
+  unidadeId?: string;
   criadoEm: Date;
 }
 
@@ -33,7 +33,7 @@ const UsuarioSchema = new Schema<IUsuario>({
   telefone:             { type: String, default: "" },
   email:                { type: String, required: true, unique: true, lowercase: true },
   senhaHash:            { type: String, required: true },
-  tipoUsuario:          { type: String, enum: ["paciente","administrador","profissionalSaude","ubs"], required: true },
+  tipoUsuario:          { type: String, enum: ["paciente", "administrador", "profissionalSaude", "ubs"], required: true },
   nivelAcesso:          { type: String },
   registroProfissional: { type: String },
   especialidadeId:      { type: String },
@@ -72,15 +72,19 @@ export interface IEspecialidade extends Document {
 }
 
 const EspecialidadeSchema = new Schema<IEspecialidade>({
-  nome:     { type: String, required: true, unique: true },
-  descricao:{ type: String, default: "" },
-  icone:    { type: String },
+  nome:      { type: String, required: true, unique: true },
+  descricao: { type: String, default: "" },
+  icone:     { type: String },
 }, { toJSON: toJSONOption, toObject: toJSONOption });
 
 export const Especialidade = model<IEspecialidade>("Especialidade", EspecialidadeSchema);
 
 // ── AGENDA ────────────────────────────────────────────────────
-export interface IHorario { hora: string; disponivel: boolean; }
+export interface IHorario {
+  hora: string;
+  disponivel: boolean;
+}
+
 export interface IAgenda extends Document {
   profissionalId: string;
   unidadeId: string;
@@ -91,7 +95,7 @@ export interface IAgenda extends Document {
 const AgendaSchema = new Schema<IAgenda>({
   profissionalId: { type: String, required: true },
   unidadeId:      { type: String, required: true },
-  data:           { type: String, required: true }, // "YYYY-MM-DD"
+  data:           { type: String, required: true },
   horarios: [{
     hora:       { type: String, required: true },
     disponivel: { type: Boolean, default: true },
@@ -100,7 +104,18 @@ const AgendaSchema = new Schema<IAgenda>({
 
 export const Agenda = model<IAgenda>("Agenda", AgendaSchema);
 
-// ── AGENDAMENTO ───────────────────────────────────────────────
+// ── AGENDAMENTO / LAUDO ───────────────────────────────────────
+export interface ILaudoConsulta {
+  queixaPrincipal?: string;
+  diagnostico?: string;
+  conduta?: string;
+  prescricao?: string;
+  observacoes?: string;
+  profissionalId?: string;
+  criadoEm?: Date;
+  atualizadoEm?: Date;
+}
+
 export interface IAgendamento extends Document {
   pacienteId: string;
   profissionalId: string;
@@ -111,22 +126,37 @@ export interface IAgendamento extends Document {
   status: "pendente" | "confirmado" | "cancelado" | "concluido";
   primeiraConsulta: boolean;
   tipoVisita: "presencial" | "telemedicina";
+  laudo?: ILaudoConsulta;
+  finalizadoEm?: Date;
   criadoEm: Date;
 }
 
 const AgendamentoSchema = new Schema<IAgendamento>({
-  pacienteId:      { type: String, required: true },
-  profissionalId:  { type: String, required: true },
-  unidadeId:       { type: String, required: true },
-  especialidadeId: { type: String, required: true },
-  data:            { type: String, required: true },
-  horario:         { type: String, required: true },
-  status:          { type: String, enum: ["pendente","confirmado","cancelado","concluido"], default: "confirmado" },
-  primeiraConsulta:{ type: Boolean, default: false },
-  tipoVisita:      { type: String, enum: ["presencial","telemedicina"], default: "presencial" },
-  criadoEm:        { type: Date, default: Date.now },
+  pacienteId:       { type: String, required: true },
+  profissionalId:   { type: String, required: true },
+  unidadeId:        { type: String, required: true },
+  especialidadeId:  { type: String, required: true },
+  data:             { type: String, required: true },
+  horario:          { type: String, required: true },
+  status:           { type: String, enum: ["pendente", "confirmado", "cancelado", "concluido"], default: "confirmado" },
+  primeiraConsulta: { type: Boolean, default: false },
+  tipoVisita:       { type: String, enum: ["presencial", "telemedicina"], default: "presencial" },
+
+  laudo: {
+    queixaPrincipal: { type: String, default: "" },
+    diagnostico:     { type: String, default: "" },
+    conduta:         { type: String, default: "" },
+    prescricao:      { type: String, default: "" },
+    observacoes:     { type: String, default: "" },
+    profissionalId:  { type: String },
+    criadoEm:        { type: Date },
+    atualizadoEm:    { type: Date },
+  },
+
+  finalizadoEm: { type: Date },
+  criadoEm:     { type: Date, default: Date.now },
 }, { toJSON: toJSONOption, toObject: toJSONOption });
 
-AgendamentoSchema.index({ profissionalId: 1, data: 1, horario: 1 }, { unique: true });
-
+// Observação: não usamos índice único aqui porque consultas canceladas liberam o horário novamente.
+// A reserva real é controlada atomicamente no array horarios da coleção Agenda.
 export const Agendamento = model<IAgendamento>("Agendamento", AgendamentoSchema);

@@ -12,6 +12,7 @@ import {
   adminRouter,
   ubsRouter,
   medicoRouter,
+  usuariosRouter,
 } from "./routes";
 
 const app  = express();
@@ -26,6 +27,7 @@ app.use("/api/auth",          authRouter);
 app.use("/api/especialidades", especialidadesRouter);
 app.use("/api/unidades",       unidadesRouter);
 app.use("/api/profissionais",  profissionaisRouter);
+app.use("/api/usuarios",       usuariosRouter);
 app.use("/api/agendas",        agendasRouter);
 app.use("/api/agendamentos",   agendamentosRouter);
 app.use("/api/admin",          adminRouter);
