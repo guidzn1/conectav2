@@ -1,9 +1,3 @@
 {
-  "/page": "app/page.js",
-  "/dashboard/historico/page": "app/dashboard/historico/page.js",
-  "/ubs/login/page": "app/ubs/login/page.js",
-  "/admin/login/page": "app/admin/login/page.js",
-  "/login/page": "app/login/page.js",
-  "/medico/login/page": "app/medico/login/page.js",
-  "/agendamento/unidade/page": "app/agendamento/unidade/page.js"
+  "/page": "app/page.js"
 }
