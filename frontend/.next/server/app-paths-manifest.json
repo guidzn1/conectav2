@@ -1,10 +1,9 @@
 {
-  "/dashboard/page": "app/dashboard/page.js",
-  "/login/page": "app/login/page.js",
-  "/agendamento/especialidade/page": "app/agendamento/especialidade/page.js",
-  "/agendamento/unidade/page": "app/agendamento/unidade/page.js",
   "/page": "app/page.js",
-  "/agendamento/medico/page": "app/agendamento/medico/page.js",
-  "/agendamento/horario/page": "app/agendamento/horario/page.js",
-  "/agendamento/confirmacao/page": "app/agendamento/confirmacao/page.js"
+  "/dashboard/historico/page": "app/dashboard/historico/page.js",
+  "/ubs/login/page": "app/ubs/login/page.js",
+  "/admin/login/page": "app/admin/login/page.js",
+  "/login/page": "app/login/page.js",
+  "/medico/login/page": "app/medico/login/page.js",
+  "/agendamento/unidade/page": "app/agendamento/unidade/page.js"
 }
